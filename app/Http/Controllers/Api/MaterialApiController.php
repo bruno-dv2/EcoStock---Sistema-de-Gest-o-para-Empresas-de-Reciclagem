@@ -3,100 +3,134 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\MaterialRequest;
 use App\Models\Material;
-use Illuminate\Http\Request;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 
 class MaterialApiController extends Controller
 {
+    public function listaMateriais() : JsonResponse
+    {
+        try {
+            $materiais = Material::select('id', 'nome', 'unidade_medida')->get();
 
-    public function listaMateriais() {
+            return response()->json([
+                'status' => true,
+                'message' => 'Lista exibida com sucesso!',
+                'data' => $materiais,
+            ], 200);
 
-        $materiais = Material::select('id', 'nome', 'unidade_medida')->get();
-
-        return response()->json($materiais);
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Erro ao exibir lista de materiais.'
+            ], 500);
+        }
     }
 
 
-    public function criarMaterial(Request $request) {
-
+    public function criarMaterial(MaterialRequest $request) : JsonResponse
+    {
         try {
-            $validateData = $request->validate([
-                'nome' => 'required|string|max:50',
-                'unidade_medida' => 'nullable|string|max:10',
-            ]);
-
-            $material = Material::create($validateData);
+            $material = Material::create($request->validated());
 
             return response()->json([
+                'status' => true,
                 'message' => 'Material criado com sucesso!',
                 'data' => $material->only('id', 'nome')
             ], 201);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
+                'status' => false,
                 'message' => 'Falha ao criar material.',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
 
-    public function mostrarMaterialEspecifico($id) {
 
+    public function mostrarMaterialEspecifico($id) : JsonResponse
+    {
         try {
-            $material = Material::findOrFail($id);
+
+            $material = Material::find($id);
+
+            if (!$material) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Material não encontrado.',
+                ], 404);
+            }
 
             return response()->json([
+                'status' => true,
                 'message' => 'Material encontrado!',
                 'data' => $material->only('id', 'nome', 'unidade_medida')
-            ], 201);
+            ], 200);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
-                'message' => 'Material não encontrado.',
-                'error' => $e->getMessage()
-            ], 404);
-        }
-    }
-
-
-    public function editarMaterial(Request $request, $id) {
-        try {
-            $material = Material::findOrFail($id);
-
-            $validated = $request->validate([
-                'nome' => 'required|string|max:50',
-                'unidade_medida' => 'nullable|string|max:10',
-            ]);
-
-            $material->update($validated);
-
-            return response()->json([
-                'message' => 'Material atualizado com sucesso!',
-                'data' => $material->only('id', 'nome')
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Falha ao atualizar material.',
-                'error' => $e->getMessage()
+                'status' => false,
+                'message' => 'Ocorreu um erro ao buscar material.'
             ], 500);
         }
     }
 
 
-    public function deletarMaterial($id) {
+    public function editarMaterial(MaterialRequest $request, $id) : JsonResponse
+    {
         try {
-            $material = Material::findOrFail($id);
+            $material = Material::find($id);
+
+            if (!$material) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Material não encontrado.'
+                ], 404);
+            }
+
+            $material->update($request->validated());
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Material atualizado com sucesso!',
+                'data' => $material->only('id', 'nome', 'unidade_medida')
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Falha ao atualizar material.'
+            ], 500);
+        }
+    }
+
+
+    public function deletarMaterial($id) : JsonResponse
+    {
+        try {
+            $material = Material::find($id);
+
+            if (!$material) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Material não encontrado.'
+                ], 404);
+            }
+
             $material->delete();
 
             return response()->json([
+                'status' => true,
                 'message' => 'Material deletado com sucesso!',
-                'data' => $material->only('id', 'nome')
+                'data' => $material->only('id', 'nome', 'unidade_medida')
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
-                'message' => 'Falha ao deletar material.',
-                'error' => $e->getMessage()
+                'status' => false,
+                'message' => 'Falha ao deletar material.'
             ], 500);
         }
     }
